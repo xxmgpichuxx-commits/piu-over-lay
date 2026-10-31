@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump It Up Phoenix 2 Overlay Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0f19;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Overlay Canvas & Frame Styling */
+        #overlay-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+        }
+
+        /* Simulated Stream Layout Frames matching aspect ratio 9:16 */
+        .vertical-aspect {
+            aspect-ratio: 9 / 16;
+            max-height: 85vh;
+        }
+
+        /* Lightning Canvas overlays on top of frame borders */
+        .lightning-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* Pulse Animations */
+        @keyframes electricPulse {
+            0% { opacity: 0.8; filter: drop-shadow(0 0 5px #39ff14) brightness(1); }
+            50% { opacity: 1; filter: drop-shadow(0 0 18px #52ff20) brightness(1.4); }
+            100% { opacity: 0.8; filter: drop-shadow(0 0 5px #39ff14) brightness(1); }
+        }
+
+        .electric-glow {
+            animation: electricPulse 0.15s infinite alternate;
+        }
+
+        /* Custom Scrollbar for Controls */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #22c55e;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row bg-slate-950 text-slate-100">
+
+    <!-- Control Panel Sidebar -->
+    <aside class="w-full lg:w-96 bg-slate-900 border-r border-slate-800 p-5 flex flex-col gap-6 z-30 overflow-y-auto max-h-screen">
+        <div class="border-b border-slate-800 pb-4">
+            <h1 class="text-2xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 tracking-wider flex items-center gap-2">
+                <i class="fa-solid font-bold fa-bolt text-green-400"></i> PIU OVERLAY
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Generador de Marcos de Rayos para TikTok Live / OBS</p>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="flex rounded-lg bg-slate-950 p-1 border border-slate-800">
+            <button id="btn-mode-preview" onclick="setMode('preview')" class="flex-1 py-2 text-xs font-bold rounded-md bg-green-600 text-slate-950 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-eye"></i> Vista Previa
+            </button>
+            <button id="btn-mode-obs" onclick="setMode('obs')" class="flex-1 py-2 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-video"></i> Modo OBS (Transparente)
+            </button>
+        </div>
+
+        <!-- Lightning Settings -->
+        <div class="space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
+                <i class="fa-solid fa-sliders"></i> Configuración de Rayos
+            </h2>
+            
+            <div>
+                <label class="text-xs text-slate-300 block mb-1">Color de la Electricidad</label>
+                <div class="flex gap-2">
+                    <input type="color" id="color-picker" value="#39ff14" class="w-10 h-9 bg-slate-950 border border-slate-700 rounded cursor-pointer p-1">
+                    <input type="text" id="color-hex" value="#39ff14" class="flex-1 bg-slate-950 border border-slate-700 rounded px-3 text-xs text-slate-200 font-mono focus:outline-none focus:border-green-500">
+                </div>
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Intensidad/Frecuencia</span>
+                    <span id="val-frequency">80%</span>
+                </div>
+                <input type="range" id="slider-frequency" min="20" max="100" value="80" class="w-full accent-green-500 bg-slate-950">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Grosor de Rayos</span>
+                    <span id="val-thickness">2.5px</span>
+                </div>
+                <input type="range" id="slider-thickness" min="1" max="6" step="0.5" value="2.5" class="w-full accent-green-500 bg-slate-950">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Brillo / Resplandor Glow</span>
+                    <span id="val-glow">20px</span>
+                </div>
+                <input type="range" id="slider-glow" min="5" max="40" value="20" class="w-full accent-green-500 bg-slate-950">
+            </div>
+        </div>
+
+        <!-- Fullscreen Lightning Controls -->
+        <div class="space-y-4 border-t border-slate-800 pt-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
+                <i class="fa-solid fa-bolt-lightning"></i> Rayos de Pantalla Completa
+            </h2>
+
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300">Activar Rayos Pantalla</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-screen-lightning" checked class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Cantidad de Rayos Cruzados</span>
+                    <span id="val-screen-count">3</span>
+                </div>
+                <input type="range" id="slider-screen-count" min="1" max="8" value="3" class="w-full accent-green-500 bg-slate-950">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Ramificación / Detalle</span>
+                    <span id="val-screen-branches">Medio</span>
+                </div>
+                <input type="range" id="slider-screen-branches" min="1" max="5" value="3" class="w-full accent-green-500 bg-slate-950">
+            </div>
+        </div>
+
+        <!-- Branding / Logo & Text Controls -->
+        <div class="space-y-4 border-t border-slate-800 pt-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
+                <i class="fa-solid fa-image"></i> Logo y Textos
+            </h2>
+
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300">Mostrar Logo PIU Phoenix 2</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-logo" checked class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                    <span>Tamaño del Logo</span>
+                    <span id="val-logosize">140px</span>
+                </div>
+                <input type="range" id="slider-logosize" min="80" max="260" value="140" class="w-full accent-green-500 bg-slate-950">
+            </div>
+
+            <div>
+                <label class="text-xs text-slate-300 block mb-1">Texto Streamer / Redes</label>
+                <input type="text" id="input-username" value="@MiCanalTikTok" placeholder="Tu usuario de TikTok" class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-green-500">
+            </div>
+        </div>
+
+        <!-- Stream Guide Toggles -->
+        <div class="space-y-4 border-t border-slate-800 pt-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
+                <i class="fa-solid fa-border-all"></i> Ajuste de Marcos
+            </h2>
+
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300">Marco Pad Superior (Pies)</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-top-pad" checked class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300">Marco Cámara Jugador (Abajo)</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-player-cam" checked class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+            </div>
+        </div>
+
+        <!-- OBS Browser Source Instructions -->
+        <div class="mt-auto border-t border-slate-800 pt-4">
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs text-slate-400 space-y-2">
+                <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-green-400"></i> ¿Cómo usar en OBS / TikTok Studio?
+                </div>
+                <p>1. Cambia a <b>Modo OBS</b> (fondo transparente).</p>
+                <p>2. Agrega una fuente de <b>Navegador (Browser Source)</b> apuntando a esta URL.</p>
+                <p>3. Define la resolución en <b>1080 x 1920</b> (Formato Vertical TikTok).</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main View Area (Overlay Canvas Wrapper) -->
+    <main class="flex-1 flex flex-col items-center justify-center p-2 lg:p-6 relative bg-slate-950 overflow-hidden">
+        
+        <!-- Frame Container maintaining 9:16 vertical stream proportions -->
+        <div id="stream-frame" class="vertical-aspect w-full max-w-[450px] relative rounded-lg border border-slate-800 overflow-hidden shadow-2xl transition-all">
+            
+            <!-- Background Mock Images for Preview Mode -->
+            <div id="mock-background" class="absolute inset-0 pointer-events-none z-0">
+                <!-- Top Pad Camera Mock -->
+                <div class="absolute top-[7.5%] left-[22.5%] w-[55%] h-[12%] bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-800">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase"><i class="fa-solid fa-shoe-prints"></i> Pad Feet Cam</span>
+                </div>
+                <!-- Game Capture Area Mock -->
+                <div class="absolute top-[20%] left-[10%] w-[80%] h-[28%] bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-center p-2">
+                    <span class="text-xs text-slate-400 font-bold font-orbitron">GAME CAPTURE</span>
+                    <span class="text-[9px] text-slate-600">Pump It Up Game Screen</span>
+                </div>
+                <!-- Player Camera Area Mock -->
+                <div class="absolute top-[48%] left-[2.5%] w-[95%] h-[48%] bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <span class="text-sm text-slate-400 font-bold font-orbitron">PLAYER CAM</span>
+                    <span class="text-[10px] text-slate-600">Cámara Completa del Jugador</span>
+                </div>
+            </div>
+
+            <!-- OVERLAY ELEMENTS (Transparent Target) -->
+            <div id="overlay-container">
+                
+                <!-- Lightning Animation Canvas Layer -->
+                <canvas id="lightning-canvas" class="lightning-canvas"></canvas>
+
+                <!-- SVG PIU PHOENIX 2 LOGO -->
+                <div id="logo-wrapper" class="absolute bottom-3 right-3 z-30 transition-all filter drop-shadow-[0_0_12px_rgba(57,255,20,0.6)]">
+                    <svg id="piu-logo" class="w-auto h-full" viewBox="0 0 500 230" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="pump-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff"/>
+                                <stop offset="40%" stop-color="#e2ff38"/>
+                                <stop offset="80%" stop-color="#72c400"/>
+                                <stop offset="100%" stop-color="#1b5200"/>
+                            </linearGradient>
+
+                            <linearGradient id="phoenix-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff"/>
+                                <stop offset="35%" stop-color="#bdff38"/>
+                                <stop offset="70%" stop-color="#41a800"/>
+                                <stop offset="100%" stop-color="#0c3800"/>
+                            </linearGradient>
+
+                            <filter id="glow-effect" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <path d="M 60 70 L 10 130 L 110 110 L 70 180 L 130 140 L 90 220 L 220 140" fill="#39ff14" opacity="0.85"/>
+                        <path d="M 440 70 L 490 130 L 390 110 L 430 180 L 370 140 L 410 220 L 280 140" fill="#39ff14" opacity="0.85"/>
+
+                        <g filter="url(#glow-effect)">
+                            <text x="250" y="90" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="70" font-style="italic" fill="none" stroke="#000000" stroke-width="18" stroke-linejoin="round">PUMP</text>
+                            <text x="250" y="90" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="70" font-style="italic" fill="none" stroke="#39ff14" stroke-width="8" stroke-linejoin="round">PUMP</text>
+                            <text x="250" y="90" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="70" font-style="italic" fill="url(#pump-grad)">PUMP</text>
+                            
+                            <g transform="translate(300, 25) scale(0.65) rotate(-5)">
+                                <text x="100" y="40" font-family="'Orbitron', sans-serif" font-weight="900" font-size="32" font-style="italic" fill="#ffffff" stroke="#000000" stroke-width="6">it UP™</text>
+                            </g>
+                        </g>
+
+                        <g transform="translate(195, 98)">
+                            <rect x="0" y="0" width="110" height="24" fill="#032100" stroke="#39ff14" stroke-width="2" rx="3"/>
+                            <text x="55" y="17" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="16" fill="#39ff14" letter-spacing="3">DAZE</text>
+                        </g>
+
+                        <g filter="url(#glow-effect)">
+                            <text x="250" y="185" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="62" fill="none" stroke="#000000" stroke-width="18" stroke-linejoin="round">PHOENIX 2</text>
+                            <text x="250" y="185" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="62" fill="none" stroke="#39ff14" stroke-width="6" stroke-linejoin="round">PHOENIX 2</text>
+                            <text x="250" y="185" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="900" font-size="62" fill="url(#phoenix-grad)">PHOENIX 2</text>
+                        </g>
+
+                        <path d="M 120 160 L 180 165 L 140 175 L 230 170 L 320 175 L 290 165 L 380 160" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.9" />
+                        
+                        <text x="250" y="215" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="bold" fill="#39ff14" letter-spacing="1">COPYRIGHT © BY ANDAMIRO CO., LTD. ALL RIGHTS RESERVED.</text>
+                    </svg>
+                </div>
+
+                <!-- Streamer Username Tag Overlay -->
+                <div id="username-tag" class="absolute top-3 left-3 z-30 bg-slate-950/80 backdrop-blur border border-green-500/50 px-3 py-1 rounded-md text-xs font-bold font-orbitron text-green-400 flex items-center gap-2 shadow-[0_0_10px_rgba(57,255,20,0.3)]">
+                    <i class="fa-brands fa-tiktok text-white"></i>
+                    <span id="display-username">@MiCanalTikTok</span>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Engine for Lightning Generation & Realtime Updates -->
+    <script>
+        // State Configuration
+        const config = {
+            mode: 'preview', // 'preview' or 'obs'
+            color: '#39ff14',
+            frequency: 80,
+            thickness: 2.5,
+            glow: 20,
+            showLogo: true,
+            logoSize: 140,
+            username: '@MiCanalTikTok',
+            showTopPad: true,
+            showPlayerCam: true,
+            showScreenLightning: true,
+            screenCount: 3,
+            screenBranches: 3
+        };
+
+        // DOM Elements
+        const container = document.getElementById('stream-frame');
+        const mockBg = document.getElementById('mock-background');
+        const canvas = document.getElementById('lightning-canvas');
+        const ctx = canvas.getContext('2d');
+        const logoWrapper = document.getElementById('logo-wrapper');
+        const usernameTag = document.getElementById('username-tag');
+        const displayUsername = document.getElementById('display-username');
+
+        // Color & Control Inputs
+        const colorPicker = document.getElementById('color-picker');
+        const colorHex = document.getElementById('color-hex');
+        const sliderFrequency = document.getElementById('slider-frequency');
+        const sliderThickness = document.getElementById('slider-thickness');
+        const sliderGlow = document.getElementById('slider-glow');
+        const sliderLogoSize = document.getElementById('slider-logosize');
+        const toggleLogo = document.getElementById('toggle-logo');
+        const inputUsername = document.getElementById('input-username');
+        const toggleTopPad = document.getElementById('toggle-top-pad');
+        const togglePlayerCam = document.getElementById('toggle-player-cam');
+        const toggleScreenLightning = document.getElementById('toggle-screen-lightning');
+        const sliderScreenCount = document.getElementById('slider-screen-count');
+        const sliderScreenBranches = document.getElementById('slider-screen-branches');
+
+        // Resize Canvas to Match Container Resolution
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Control Listeners
+        colorPicker.addEventListener('input', (e) => {
+            config.color = e.target.value;
+            colorHex.value = e.target.value;
+        });
+
+        colorHex.addEventListener('input', (e) => {
+            if(/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                config.color = e.target.value;
+                colorPicker.value = e.target.value;
+            }
+        });
+
+        sliderFrequency.addEventListener('input', (e) => {
+            config.frequency = parseInt(e.target.value);
+            document.getElementById('val-frequency').innerText = config.frequency + '%';
+        });
+
+        sliderThickness.addEventListener('input', (e) => {
+            config.thickness = parseFloat(e.target.value);
+            document.getElementById('val-thickness').innerText = config.thickness + 'px';
+        });
+
+        sliderGlow.addEventListener('input', (e) => {
+            config.glow = parseInt(e.target.value);
+            document.getElementById('val-glow').innerText = config.glow + 'px';
+        });
+
+        sliderLogoSize.addEventListener('input', (e) => {
+            config.logoSize = parseInt(e.target.value);
+            document.getElementById('val-logosize').innerText = config.logoSize + 'px';
+            logoWrapper.style.height = config.logoSize + 'px';
+        });
+
+        toggleLogo.addEventListener('change', (e) => {
+            config.showLogo = e.target.checked;
+            logoWrapper.style.display = config.showLogo ? 'block' : 'none';
+        });
+
+        inputUsername.addEventListener('input', (e) => {
+            config.username = e.target.value;
+            displayUsername.innerText = config.username || '';
+            usernameTag.style.display = config.username.trim() ? 'flex' : 'none';
+        });
+
+        toggleTopPad.addEventListener('change', (e) => {
+            config.showTopPad = e.target.checked;
+        });
+
+        togglePlayerCam.addEventListener('change', (e) => {
+            config.showPlayerCam = e.target.checked;
+        });
+
+        toggleScreenLightning.addEventListener('change', (e) => {
+            config.showScreenLightning = e.target.checked;
+        });
+
+        sliderScreenCount.addEventListener('input', (e) => {
+            config.screenCount = parseInt(e.target.value);
+            document.getElementById('val-screen-count').innerText = config.screenCount;
+        });
+
+        sliderScreenBranches.addEventListener('input', (e) => {
+            config.screenBranches = parseInt(e.target.value);
+            const labels = ['Muy Bajo', 'Bajo', 'Medio', 'Alto', 'Extremo'];
+            document.getElementById('val-screen-branches').innerText = labels[config.screenBranches - 1];
+        });
+
+        // Mode Switching
+        function setMode(mode) {
+            config.mode = mode;
+            const btnPreview = document.getElementById('btn-mode-preview');
+            const btnObs = document.getElementById('btn-mode-obs');
+
+            if (mode === 'obs') {
+                container.classList.remove('bg-slate-950', 'border', 'border-slate-800');
+                container.style.backgroundColor = 'transparent';
+                mockBg.style.display = 'none';
+
+                btnObs.classList.add('bg-green-600', 'text-slate-950');
+                btnObs.classList.remove('text-slate-400');
+                btnPreview.classList.remove('bg-green-600', 'text-slate-950');
+                btnPreview.classList.add('text-slate-400');
+            } else {
+                container.classList.add('border', 'border-slate-800');
+                container.style.backgroundColor = '#0b0f19';
+                mockBg.style.display = 'block';
+
+                btnPreview.classList.add('bg-green-600', 'text-slate-950');
+                btnPreview.classList.remove('text-slate-400');
+                btnObs.classList.remove('bg-green-600', 'text-slate-950');
+                btnObs.classList.add('text-slate-400');
+            }
+        }
+
+        // --- LIGHTNING GENERATOR ENGINE --- //
+
+        function generateLightningPath(x1, y1, x2, y2, displacement) {
+            if (displacement < 3) {
+                return [{x: x1, y: y1}, {x: x2, y: y2}];
+            }
+
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+
+            const normalX = -(y2 - y1);
+            const normalY = x2 - x1;
+            const len = Math.sqrt(normalX * normalX + normalY * normalY);
+
+            const jitter = (Math.random() - 0.5) * displacement;
+            const nx = midX + (normalX / len) * jitter;
+            const ny = midY + (normalY / len) * jitter;
+
+            const leftBranch = generateLightningPath(x1, y1, nx, ny, displacement / 2);
+            const rightBranch = generateLightningPath(nx, ny, x2, y2, displacement / 2);
+
+            return leftBranch.concat(rightBranch.slice(1));
+        }
+
+        function drawBolt(points, color, width, glow) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = glow;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Inner white highlight
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, width * 0.4);
+            ctx.shadowBlur = 0;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawScreenLightning() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            for (let i = 0; i < config.screenCount; i++) {
+                if (Math.random() > 0.35) continue;
+
+                let startX, startY, endX, endY;
+
+                const startEdge = Math.floor(Math.random() * 2);
+                if (startEdge === 0) {
+                    startX = Math.random() * w;
+                    startY = -10;
+                } else {
+                    startX = -10;
+                    startY = Math.random() * (h * 0.5);
+                }
+
+                const endEdge = Math.floor(Math.random() * 2);
+                if (endEdge === 0) {
+                    endX = Math.random() * w;
+                    endY = h + 10;
+                } else {
+                    endX = w + 10;
+                    endY = (h * 0.4) + Math.random() * (h * 0.6);
+                }
+
+                const points = generateLightningPath(startX, startY, endX, endY, 28);
+                drawBolt(points, config.color, config.thickness * 1.2, config.glow * 1.2);
+
+                const branchCount = config.screenBranches;
+                for (let b = 0; b < branchCount; b++) {
+                    if (Math.random() < 0.6) {
+                        const randomIdx = Math.floor(Math.random() * (points.length - 1));
+                        const origin = points[randomIdx];
+                        
+                        const angle = (Math.random() * Math.PI) - (Math.PI / 2);
+                        const len = 30 + Math.random() * 70;
+                        const bx = origin.x + Math.cos(angle) * len;
+                        const by = origin.y + Math.sin(angle) * len;
+
+                        const bPoints = generateLightningPath(origin.x, origin.y, bx, by, 14);
+                        drawBolt(bPoints, config.color, config.thickness * 0.6, config.glow * 0.8);
+                    }
+                }
+            }
+        }
+
+        function getFrameRects() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const rects = [];
+
+            if (config.showTopPad) {
+                rects.push({
+                    x: w * 0.225,
+                    y: h * 0.075,
+                    width: w * 0.55,
+                    height: h * 0.12
+                });
+            }
+
+            if (config.showPlayerCam) {
+                rects.push({
+                    x: w * 0.025,
+                    y: h * 0.48,
+                    width: w * 0.95,
+                    height: h * 0.48
+                });
+            }
+
+            rects.push({
+                x: 0,
+                y: 0,
+                width: w,
+                height: h
+            });
+
+            return rects;
+        }
+
+        // Main Animation Loop
+        function animateLightning() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (config.showScreenLightning) {
+                drawScreenLightning();
+            }
+
+            if (Math.random() * 100 < config.frequency) {
+                const rects = getFrameRects();
+
+                rects.forEach(rect => {
+                    const edges = [
+                        { x1: rect.x, y1: rect.y, x2: rect.x + rect.width, y2: rect.y },
+                        { x1: rect.x + rect.width, y1: rect.y, x2: rect.x + rect.width, y2: rect.y + rect.height },
+                        { x1: rect.x + rect.width, y1: rect.y + rect.height, x2: rect.x, y2: rect.y + rect.height },
+                        { x1: rect.x, y1: rect.y + rect.height, x2: rect.x, y2: rect.y }
+                    ];
+
+                    edges.forEach(edge => {
+                        if (Math.random() < 0.75) {
+                            const points = generateLightningPath(
+                                edge.x1, edge.y1,
+                                edge.x2, edge.y2,
+                                18
+                            );
+                            drawBolt(points, config.color, config.thickness, config.glow);
+                        }
+                    });
+
+                    if (Math.random() < 0.3) {
+                        const side = Math.floor(Math.random() * 4);
+                        let startX, startY;
+                        if (side === 0) { startX = rect.x + Math.random() * rect.width; startY = rect.y; }
+                        else if (side === 1) { startX = rect.x + rect.width; startY = rect.y + Math.random() * rect.height; }
+                        else if (side === 2) { startX = rect.x + Math.random() * rect.width; startY = rect.y + rect.height; }
+                        else { startX = rect.x; startY = rect.y + Math.random() * rect.height; }
+
+                        const angle = Math.random() * Math.PI * 2;
+                        const length = 15 + Math.random() * 30;
+                        const endX = startX + Math.cos(angle) * length;
+                        const endY = startY + Math.sin(angle) * length;
+
+                        const branchPoints = generateLightningPath(startX, startY, endX, endY, 10);
+                        drawBolt(branchPoints, config.color, config.thickness * 0.7, config.glow * 0.8);
+                    }
+                });
+            }
+
+            requestAnimationFrame(animateLightning);
+        }
+
+        // Initialize Settings
+        logoWrapper.style.height = config.logoSize + 'px';
+        animateLightning();
+    </script>
+</body>
+</html>
